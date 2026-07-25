@@ -6,13 +6,17 @@ from engine.timer import ChessTimer
 from engine.save_manager import save_game, load_game
 
 class Game:
-    def __init__(self, screen):
+    def __init__(self, screen, online_mode=False, player_color="w", network=None):
         self.screen = screen
         self.board = Board()
         self.turn = "w"
         self.selected_pos = None
         self.valid_moves = self.board.get_valid_moves(self.turn)
         self.game_over = False
+        
+        self.online_mode = online_mode
+        self.player_color = player_color
+        self.network = network
         
         # Undo / Redo
         self.undone_moves = []
@@ -28,6 +32,19 @@ class Game:
         self.large_font = pygame.font.SysFont("Consolas", 32, bold=True)
 
     def update(self):
+        # Network receive
+        if self.online_mode and self.turn != self.player_color:
+            data = self.network.receive()
+            if data:
+                if data.startswith("move:"):
+                    move_id = int(data.split(":")[1])
+                    for valid_move in self.valid_moves:
+                        if valid_move.move_id == move_id:
+                            self.board.make_move(valid_move)
+                            self.undone_moves.clear()
+                            self.change_turn()
+                            break
+
         # Update active timer
         if not self.game_over:
             if self.turn == "w":
@@ -98,6 +115,9 @@ class Game:
         if self.game_over:
             return
 
+        if self.online_mode and self.turn != self.player_color:
+            return # Not your turn!
+
         x, y = pos
         if x > BOARD_WIDTH:
             return # Clicked in panel
@@ -121,8 +141,11 @@ class Game:
                 for valid_move in self.valid_moves:
                     if move_attempt == valid_move:
                         self.board.make_move(valid_move)
-                        self.undone_moves.clear() # Clear redo stack
+                        self.undone_moves.clear()
                         made_move = True
+                        
+                        if self.online_mode:
+                            self.network.send(f"move:{valid_move.move_id}")
                         break
 
                 if made_move:
@@ -140,6 +163,9 @@ class Game:
                 self.selected_pos = (row, col)
 
     def handle_keydown(self, key):
+        if self.online_mode:
+            return # Disable undo/redo in online play to prevent desync
+            
         if key == pygame.K_z or key == pygame.K_LEFT:
             self.undo()
         elif key == pygame.K_r or key == pygame.K_RIGHT:
@@ -169,13 +195,11 @@ class Game:
             self.selected_pos = None
 
     def load_from_ids(self, move_ids):
-        # Reset game
         self.board = Board()
         self.turn = "w"
         self.game_over = False
         self.undone_moves.clear()
         
-        # Apply moves
         for move_id in move_ids:
             self.valid_moves = self.board.get_valid_moves(self.turn)
             for valid_move in self.valid_moves:
