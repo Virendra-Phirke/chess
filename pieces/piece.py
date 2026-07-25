@@ -1,20 +1,25 @@
 import pygame
+import os
 from constants import SQUARE_SIZE
 
 class Piece:
-    def __init__(self, color, name):
+    def __init__(self, color, name, theme="cburnett"):
         self.color = color  # "w" or "b"
         self.name = name    # "p", "r", "n", "b", "q", "k"
+        self.theme = theme
         self.image = None
         self.has_moved = False
         self.load_image()
 
     def load_image(self):
         try:
-            img = pygame.image.load(f"assets/pieces/{self.color}{self.name}.svg")
+            path = os.path.join("assets", self.theme, f"{self.color}{self.name.upper()}.svg")
+            if not os.path.exists(path):
+                path = os.path.join("assets", f"{self.color}{self.name.upper()}.svg")
+            img = pygame.image.load(path)
             # Scale image to fit the square
             self.image = pygame.transform.smoothscale(img, (SQUARE_SIZE, SQUARE_SIZE))
-        except FileNotFoundError:
+        except (FileNotFoundError, pygame.error):
             # Fallback if image not found: just draw a colored circle later or leave None
             print(f"Warning: Image not found for {self.color}{self.name}")
 

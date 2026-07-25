@@ -4,7 +4,8 @@ from pieces import Pawn, Rook, Knight, Bishop, Queen, King
 from engine.move import Move
 
 class Board:
-    def __init__(self):
+    def __init__(self, theme="cburnett"):
+        self.theme = theme
         self.grid = [[None for _ in range(COLS)] for _ in range(ROWS)]
         self.move_log = []
         self.white_king_location = (7, 4)
@@ -20,13 +21,13 @@ class Board:
 
     def _setup_board(self):
         for c in range(COLS):
-            self.grid[1][c] = Pawn("b")
-            self.grid[6][c] = Pawn("w")
+            self.grid[1][c] = Pawn("b", self.theme)
+            self.grid[6][c] = Pawn("w", self.theme)
 
         placement = [Rook, Knight, Bishop, Queen, King, Bishop, Knight, Rook]
         for c in range(COLS):
-            self.grid[0][c] = placement[c]("b")
-            self.grid[7][c] = placement[c]("w")
+            self.grid[0][c] = placement[c]("b", self.theme)
+            self.grid[7][c] = placement[c]("w", self.theme)
 
     def make_move(self, move):
         self.grid[move.start_row][move.start_col] = None
@@ -42,7 +43,7 @@ class Board:
 
         # Pawn Promotion
         if move.is_pawn_promotion:
-            self.grid[move.end_row][move.end_col] = Queen(move.piece_moved.color)
+            self.grid[move.end_row][move.end_col] = Queen(move.piece_moved.color, self.theme)
 
         # En Passant Move
         if move.is_en_passant_move:

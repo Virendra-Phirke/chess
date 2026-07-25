@@ -16,24 +16,32 @@ def main_menu(screen, clock):
     font = pygame.font.SysFont("Consolas", 60, bold=True)
     small_font = pygame.font.SysFont("Consolas", 30)
     
+    themes = ["cburnett", "california", "spatial", "fantasy"]
+    theme_names = ["Professional", "Modern", "Futuristic", "Fantasy"]
+    current_theme_idx = 0
+    
     while True:
         screen.fill((48, 46, 43)) # PANEL_COLOR
         draw_text_centered("CHESS", font, (255, 255, 255), screen, HEIGHT // 4)
         
+        btn_theme = pygame.Rect(WIDTH//2 - 150, HEIGHT//2 - 130, 300, 50)
         btn_local = pygame.Rect(WIDTH//2 - 150, HEIGHT//2 - 60, 300, 50)
         btn_ai = pygame.Rect(WIDTH//2 - 150, HEIGHT//2 + 10, 300, 50)
         btn_online = pygame.Rect(WIDTH//2 - 150, HEIGHT//2 + 80, 300, 50)
         
         # Hover effects
         pos = pygame.mouse.get_pos()
+        c_theme = (100, 100, 100) if btn_theme.collidepoint(pos) else (70, 70, 70)
         c_local = (100, 100, 100) if btn_local.collidepoint(pos) else (70, 70, 70)
         c_ai = (100, 100, 100) if btn_ai.collidepoint(pos) else (70, 70, 70)
         c_online = (100, 100, 100) if btn_online.collidepoint(pos) else (70, 70, 70)
         
+        pygame.draw.rect(screen, c_theme, btn_theme, border_radius=5)
         pygame.draw.rect(screen, c_local, btn_local, border_radius=5)
         pygame.draw.rect(screen, c_ai, btn_ai, border_radius=5)
         pygame.draw.rect(screen, c_online, btn_online, border_radius=5)
         
+        draw_text_centered(f"Theme: {theme_names[current_theme_idx]}", small_font, (255,255,255), screen, HEIGHT//2 - 105)
         draw_text_centered("Play Local", small_font, (255,255,255), screen, HEIGHT//2 - 35)
         draw_text_centered("Play vs AI", small_font, (255,255,255), screen, HEIGHT//2 + 35)
         draw_text_centered("Play Online", small_font, (255,255,255), screen, HEIGHT//2 + 105)
@@ -44,12 +52,14 @@ def main_menu(screen, clock):
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    if btn_local.collidepoint(pos):
-                        return False, False # online=False, ai=False
+                    if btn_theme.collidepoint(pos):
+                        current_theme_idx = (current_theme_idx + 1) % len(themes)
+                    elif btn_local.collidepoint(pos):
+                        return False, False, themes[current_theme_idx]
                     elif btn_ai.collidepoint(pos):
-                        return False, True  # online=False, ai=True
+                        return False, True, themes[current_theme_idx]
                     elif btn_online.collidepoint(pos):
-                        return True, False  # online=True, ai=False
+                        return True, False, themes[current_theme_idx]
                         
         pygame.display.update()
         clock.tick(FPS)
@@ -60,7 +70,7 @@ def main():
     pygame.display.set_caption("Chess - Main Menu")
     clock = pygame.time.Clock()
 
-    online, ai_mode = main_menu(screen, clock)
+    online, ai_mode, theme = main_menu(screen, clock)
     
     network = None
     player_color = "w"
@@ -75,7 +85,7 @@ def main():
             print("Failed to connect to server. Falling back to local.")
             online = False
 
-    game = Game(screen, online_mode=online, player_color=player_color, network=network, ai_mode=ai_mode)
+    game = Game(screen, online_mode=online, player_color=player_color, network=network, ai_mode=ai_mode, theme=theme)
     pygame.display.set_caption(f"Chess - {'Online (' + player_color + ')' if online else ('vs AI' if ai_mode else 'Local (Pass & Play)')}")
 
     running = True

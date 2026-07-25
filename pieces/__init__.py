@@ -21,8 +21,8 @@ def get_sliding_moves(r, c, board_grid, color, directions):
     return moves
 
 class Pawn(Piece):
-    def __init__(self, color):
-        super().__init__(color, "p")
+    def __init__(self, color, theme="cburnett"):
+        super().__init__(color, "p", theme)
 
     def get_possible_moves(self, r, c, board_grid):
         moves = []
@@ -47,16 +47,16 @@ class Pawn(Piece):
         return moves
 
 class Rook(Piece):
-    def __init__(self, color):
-        super().__init__(color, "r")
+    def __init__(self, color, theme="cburnett"):
+        super().__init__(color, "r", theme)
         self.directions = [(-1, 0), (0, -1), (1, 0), (0, 1)]
 
     def get_possible_moves(self, r, c, board_grid):
         return get_sliding_moves(r, c, board_grid, self.color, self.directions)
 
 class Knight(Piece):
-    def __init__(self, color):
-        super().__init__(color, "n")
+    def __init__(self, color, theme="cburnett"):
+        super().__init__(color, "n", theme)
         self.jumps = [(-2, -1), (-2, 1), (-1, -2), (-1, 2), (1, -2), (1, 2), (2, -1), (2, 1)]
 
     def get_possible_moves(self, r, c, board_grid):
@@ -70,24 +70,24 @@ class Knight(Piece):
         return moves
 
 class Bishop(Piece):
-    def __init__(self, color):
-        super().__init__(color, "b")
+    def __init__(self, color, theme="cburnett"):
+        super().__init__(color, "b", theme)
         self.directions = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
 
     def get_possible_moves(self, r, c, board_grid):
         return get_sliding_moves(r, c, board_grid, self.color, self.directions)
 
 class Queen(Piece):
-    def __init__(self, color):
-        super().__init__(color, "q")
+    def __init__(self, color, theme="cburnett"):
+        super().__init__(color, "q", theme)
         self.directions = [(-1, 0), (0, -1), (1, 0), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
 
     def get_possible_moves(self, r, c, board_grid):
         return get_sliding_moves(r, c, board_grid, self.color, self.directions)
 
 class King(Piece):
-    def __init__(self, color):
-        super().__init__(color, "k")
+    def __init__(self, color, theme="cburnett"):
+        super().__init__(color, "k", theme)
         self.directions = [(-1, 0), (0, -1), (1, 0), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
 
     def get_possible_moves(self, r, c, board_grid):

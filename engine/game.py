@@ -7,9 +7,10 @@ from engine.save_manager import save_game, load_game
 from engine.ai import find_best_move
 
 class Game:
-    def __init__(self, screen, online_mode=False, player_color="w", network=None, ai_mode=False):
+    def __init__(self, screen, online_mode=False, player_color="w", network=None, ai_mode=False, theme="cburnett"):
         self.screen = screen
-        self.board = Board()
+        self.theme = theme
+        self.board = Board(theme)
         self.turn = "w"
         self.selected_pos = None
         self.valid_moves = self.board.get_valid_moves(self.turn)
@@ -128,9 +129,12 @@ class Game:
             if move.piece_captured:
                 move.piece_captured.draw(self.screen, move.end_col, move.end_row)
                 
-            # Draw moving piece
-            r = move.start_row + dR * (frame / frame_count)
-            c = move.start_col + dC * (frame / frame_count)
+            # Draw moving piece using Ease-Out Quadratic
+            t = frame / frame_count
+            ease_t = 1 - (1 - t) * (1 - t)
+            
+            r = move.start_row + dR * ease_t
+            c = move.start_col + dC * ease_t
             if move.piece_moved and move.piece_moved.image:
                 self.screen.blit(move.piece_moved.image, (c * SQUARE_SIZE, r * SQUARE_SIZE))
 
@@ -250,7 +254,7 @@ class Game:
             self.selected_pos = None
 
     def load_from_ids(self, move_ids):
-        self.board = Board()
+        self.board = Board(self.theme)
         self.turn = "w"
         self.game_over = False
         self.undone_moves.clear()
