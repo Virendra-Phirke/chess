@@ -1,5 +1,5 @@
 import pygame
-from constants import SQUARE_SIZE, HIGHLIGHT_COLOR, BOARD_WIDTH, PANEL_WIDTH, HEIGHT
+from constants import SQUARE_SIZE, HIGHLIGHT_COLOR, BOARD_WIDTH, PANEL_WIDTH, HEIGHT, LIGHT_SQUARE, DARK_SQUARE, FPS
 from engine.board import Board
 from engine.move import Move
 from engine.timer import ChessTimer
@@ -45,6 +45,7 @@ class Game:
                     for valid_move in self.valid_moves:
                         if valid_move.move_id == move_id:
                             self.board.make_move(valid_move)
+                            self.animate_move(valid_move)
                             self.undone_moves.clear()
                             self.change_turn()
                             break
@@ -72,6 +73,7 @@ class Game:
             ai_move = find_best_move(self.board, self.valid_moves, self.turn)
             if ai_move:
                 self.board.make_move(ai_move)
+                self.animate_move(ai_move)
                 self.undone_moves.clear()
                 self.change_turn()
 
@@ -105,6 +107,42 @@ class Game:
             rendered = self.font.render(text, True, (255, 255, 255))
             self.screen.blit(rendered, (BOARD_WIDTH + 20, y_offset))
             y_offset += 24
+
+    def animate_move(self, move):
+        dR = move.end_row - move.start_row
+        dC = move.end_col - move.start_col
+        frames_per_square = 3
+        frame_count = max(abs(dR), abs(dC)) * frames_per_square
+        if frame_count == 0:
+            return
+            
+        clock = pygame.time.Clock()
+        for frame in range(frame_count + 1):
+            self.board.draw(self.screen)
+            
+            # Hide the piece at destination
+            color = LIGHT_SQUARE if (move.end_row + move.end_col) % 2 == 0 else DARK_SQUARE
+            pygame.draw.rect(self.screen, color, (move.end_col * SQUARE_SIZE, move.end_row * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE))
+            
+            # Redraw captured piece
+            if move.piece_captured:
+                move.piece_captured.draw(self.screen, move.end_col, move.end_row)
+                
+            # Draw moving piece
+            r = move.start_row + dR * (frame / frame_count)
+            c = move.start_col + dC * (frame / frame_count)
+            if move.piece_moved and move.piece_moved.image:
+                self.screen.blit(move.piece_moved.image, (c * SQUARE_SIZE, r * SQUARE_SIZE))
+
+            # Keep start square highlighted
+            s = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE))
+            s.set_alpha(100)
+            s.fill(HIGHLIGHT_COLOR)
+            self.screen.blit(s, (move.start_col * SQUARE_SIZE, move.start_row * SQUARE_SIZE))
+
+            self.draw_panel()
+            pygame.display.update()
+            clock.tick(FPS * 2)
 
     def draw_highlight(self):
         if self.selected_pos:
@@ -156,6 +194,7 @@ class Game:
                 for valid_move in self.valid_moves:
                     if move_attempt == valid_move:
                         self.board.make_move(valid_move)
+                        self.animate_move(valid_move)
                         self.undone_moves.clear()
                         made_move = True
                         
@@ -206,6 +245,7 @@ class Game:
         if len(self.undone_moves) > 0:
             move = self.undone_moves.pop()
             self.board.make_move(move)
+            self.animate_move(move)
             self.change_turn()
             self.selected_pos = None
 
