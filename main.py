@@ -23,6 +23,9 @@ def main():
                 if event.button == 1:  # Left click
                     pos = pygame.mouse.get_pos()
                     game.handle_click(pos)
+                    
+            if event.type == pygame.KEYDOWN:
+                game.handle_keydown(event.key)
 
         game.update()
 

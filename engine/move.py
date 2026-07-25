@@ -22,3 +22,20 @@ class Move:
         if isinstance(other, Move):
             return self.move_id == other.move_id
         return False
+
+    def get_chess_notation(self):
+        if self.is_castle_move:
+            return 'O-O' if self.end_col == 6 else 'O-O-O'
+        piece = self.piece_moved.name.upper() if self.piece_moved.name != 'p' else ''
+        end_square = self.get_rank_file(self.end_row, self.end_col)
+        capture = 'x' if self.piece_captured or self.is_en_passant_move else ''
+        if self.piece_moved.name == 'p' and capture:
+            piece = self.get_rank_file(self.start_row, self.start_col)[0]
+        promotion = '=Q' if self.is_pawn_promotion else ''
+        return f'{piece}{capture}{end_square}{promotion}'
+
+    def get_rank_file(self, r, c):
+        files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+        ranks = ['8', '7', '6', '5', '4', '3', '2', '1']
+        return files[c] + ranks[r]
+

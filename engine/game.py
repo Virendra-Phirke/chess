@@ -1,7 +1,9 @@
 import pygame
-from constants import SQUARE_SIZE, HIGHLIGHT_COLOR
+from constants import SQUARE_SIZE, HIGHLIGHT_COLOR, BOARD_WIDTH, PANEL_WIDTH, HEIGHT
 from engine.board import Board
 from engine.move import Move
+from engine.timer import ChessTimer
+from engine.save_manager import save_game, load_game
 
 class Game:
     def __init__(self, screen):
@@ -11,14 +13,71 @@ class Game:
         self.selected_pos = None
         self.valid_moves = self.board.get_valid_moves(self.turn)
         self.game_over = False
+        
+        # Undo / Redo
+        self.undone_moves = []
+        
+        # Timers (e.g. 10 minutes = 600 seconds)
+        self.white_timer = ChessTimer(600)
+        self.black_timer = ChessTimer(600)
+        self.white_timer.start() # White starts
+
+        # Font
+        pygame.font.init()
+        self.font = pygame.font.SysFont("Consolas", 18)
+        self.large_font = pygame.font.SysFont("Consolas", 32, bold=True)
 
     def update(self):
+        # Update active timer
+        if not self.game_over:
+            if self.turn == "w":
+                self.white_timer.update()
+                if self.white_timer.is_flagged():
+                    self.game_over = True
+                    print("Black wins on time!")
+            else:
+                self.black_timer.update()
+                if self.black_timer.is_flagged():
+                    self.game_over = True
+                    print("White wins on time!")
+
         self.board.draw(self.screen)
         self.draw_highlight()
+        self.draw_panel()
         pygame.display.update()
 
+    def draw_panel(self):
+        panel_rect = pygame.Rect(BOARD_WIDTH, 0, PANEL_WIDTH, HEIGHT)
+        pygame.draw.rect(self.screen, (48, 46, 43), panel_rect)
+        
+        # Draw Timers
+        wt_text = self.large_font.render(self.white_timer.get_time_string(), True, (255, 255, 255))
+        bt_text = self.large_font.render(self.black_timer.get_time_string(), True, (255, 255, 255))
+        
+        # Black timer at top
+        self.screen.blit(bt_text, (BOARD_WIDTH + 20, 20))
+        # White timer at bottom
+        self.screen.blit(wt_text, (BOARD_WIDTH + 20, HEIGHT - 60))
+        
+        # Draw Move History
+        history_text = self.font.render("Move History", True, (200, 200, 200))
+        self.screen.blit(history_text, (BOARD_WIDTH + 20, 80))
+        
+        y_offset = 120
+        move_texts = []
+        for i in range(0, len(self.board.move_log), 2):
+            move_num = i // 2 + 1
+            w_move = self.board.move_log[i].get_chess_notation()
+            b_move = self.board.move_log[i+1].get_chess_notation() if i+1 < len(self.board.move_log) else ""
+            move_texts.append(f"{move_num}. {w_move: <7} {b_move}")
+            
+        # Display only last 20 moves to avoid overflow
+        for text in move_texts[-25:]:
+            rendered = self.font.render(text, True, (255, 255, 255))
+            self.screen.blit(rendered, (BOARD_WIDTH + 20, y_offset))
+            y_offset += 24
+
     def draw_highlight(self):
-        # Highlight selected square
         if self.selected_pos:
             r, c = self.selected_pos
             s = pygame.Surface((SQUARE_SIZE, SQUARE_SIZE))
@@ -26,7 +85,6 @@ class Game:
             s.fill(HIGHLIGHT_COLOR)
             self.screen.blit(s, (c * SQUARE_SIZE, r * SQUARE_SIZE))
             
-            # Highlight valid moves for selected piece
             for move in self.valid_moves:
                 if move.start_row == r and move.start_col == c:
                     pygame.draw.circle(
@@ -41,6 +99,9 @@ class Game:
             return
 
         x, y = pos
+        if x > BOARD_WIDTH:
+            return # Clicked in panel
+
         col = x // SQUARE_SIZE
         row = y // SQUARE_SIZE
         
@@ -49,10 +110,8 @@ class Game:
                 self.selected_pos = None
             else:
                 start_row, start_col = self.selected_pos
-                # Find if move is valid
                 move_attempt = Move((start_row, start_col), (row, col), self.board)
                 
-                # Check for pawn promotion (UI will eventually handle this)
                 if move_attempt.piece_moved and move_attempt.piece_moved.name == "p":
                     if (move_attempt.piece_moved.color == "w" and row == 0) or \
                        (move_attempt.piece_moved.color == "b" and row == 7):
@@ -60,10 +119,9 @@ class Game:
 
                 made_move = False
                 for valid_move in self.valid_moves:
-                    # Need to check equality and copy over special flags 
-                    # because move_attempt won't have en_passant or castle flags set correctly by itself
                     if move_attempt == valid_move:
                         self.board.make_move(valid_move)
+                        self.undone_moves.clear() # Clear redo stack
                         made_move = True
                         break
 
@@ -71,20 +129,75 @@ class Game:
                     self.change_turn()
                     self.selected_pos = None
                 else:
-                    # Select new piece if it's our color
                     piece = self.board.get_piece(row, col)
                     if piece and piece.color == self.turn:
                         self.selected_pos = (row, col)
                     else:
                         self.selected_pos = None
         else:
-            # Try to select a piece
             piece = self.board.get_piece(row, col)
             if piece and piece.color == self.turn:
                 self.selected_pos = (row, col)
 
+    def handle_keydown(self, key):
+        if key == pygame.K_z or key == pygame.K_LEFT:
+            self.undo()
+        elif key == pygame.K_r or key == pygame.K_RIGHT:
+            self.redo()
+        elif key == pygame.K_s:
+            save_game(self.board.move_log)
+            print("Game Saved!")
+        elif key == pygame.K_l:
+            move_ids = load_game()
+            if move_ids is not None:
+                self.load_from_ids(move_ids)
+                print("Game Loaded!")
+
+    def undo(self):
+        if len(self.board.move_log) > 0:
+            move = self.board.move_log[-1]
+            self.board.undo_move()
+            self.undone_moves.append(move)
+            self.change_turn()
+            self.selected_pos = None
+
+    def redo(self):
+        if len(self.undone_moves) > 0:
+            move = self.undone_moves.pop()
+            self.board.make_move(move)
+            self.change_turn()
+            self.selected_pos = None
+
+    def load_from_ids(self, move_ids):
+        # Reset game
+        self.board = Board()
+        self.turn = "w"
+        self.game_over = False
+        self.undone_moves.clear()
+        
+        # Apply moves
+        for move_id in move_ids:
+            self.valid_moves = self.board.get_valid_moves(self.turn)
+            for valid_move in self.valid_moves:
+                if valid_move.move_id == move_id:
+                    self.board.make_move(valid_move)
+                    self.turn = "b" if self.turn == "w" else "w"
+                    break
+                    
+        self.valid_moves = self.board.get_valid_moves(self.turn)
+
     def change_turn(self):
-        self.turn = "b" if self.turn == "w" else "w"
+        if self.turn == "w":
+            self.white_timer.stop()
+            self.turn = "b"
+            if not self.game_over:
+                self.black_timer.start()
+        else:
+            self.black_timer.stop()
+            self.turn = "w"
+            if not self.game_over:
+                self.white_timer.start()
+
         self.valid_moves = self.board.get_valid_moves(self.turn)
         
         if len(self.valid_moves) == 0:
