@@ -6,6 +6,7 @@ from network import Network
 
 def main():
     online = "--online" in sys.argv
+    ai_mode = "--ai" in sys.argv
     network = None
     player_color = "w"
 
@@ -23,7 +24,7 @@ def main():
     pygame.display.set_caption(f"Chess - {'Online (' + player_color + ')' if online else 'Local'}")
     clock = pygame.time.Clock()
 
-    game = Game(screen, online_mode=online, player_color=player_color, network=network)
+    game = Game(screen, online_mode=online, player_color=player_color, network=network, ai_mode=ai_mode)
 
     running = True
     while running:

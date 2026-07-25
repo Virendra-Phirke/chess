@@ -4,9 +4,10 @@ from engine.board import Board
 from engine.move import Move
 from engine.timer import ChessTimer
 from engine.save_manager import save_game, load_game
+from engine.ai import find_best_move
 
 class Game:
-    def __init__(self, screen, online_mode=False, player_color="w", network=None):
+    def __init__(self, screen, online_mode=False, player_color="w", network=None, ai_mode=False):
         self.screen = screen
         self.board = Board()
         self.turn = "w"
@@ -17,6 +18,9 @@ class Game:
         self.online_mode = online_mode
         self.player_color = player_color
         self.network = network
+        
+        self.ai_mode = ai_mode
+        self.ai_color = "b" # Assume AI is black for now
         
         # Undo / Redo
         self.undone_moves = []
@@ -62,6 +66,14 @@ class Game:
         self.draw_highlight()
         self.draw_panel()
         pygame.display.update()
+        
+        # AI Logic
+        if self.ai_mode and self.turn == self.ai_color and not self.game_over:
+            ai_move = find_best_move(self.board, self.valid_moves, self.turn)
+            if ai_move:
+                self.board.make_move(ai_move)
+                self.undone_moves.clear()
+                self.change_turn()
 
     def draw_panel(self):
         panel_rect = pygame.Rect(BOARD_WIDTH, 0, PANEL_WIDTH, HEIGHT)
@@ -117,6 +129,9 @@ class Game:
 
         if self.online_mode and self.turn != self.player_color:
             return # Not your turn!
+            
+        if self.ai_mode and self.turn == self.ai_color:
+            return # AI's turn
 
         x, y = pos
         if x > BOARD_WIDTH:
